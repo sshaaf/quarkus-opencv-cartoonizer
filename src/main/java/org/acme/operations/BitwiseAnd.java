@@ -1,4 +1,4 @@
-package org.acme.filters;
+package org.acme.operations;
 
 import org.opencv.core.Core;
 import org.opencv.core.Mat;

@@ -2,75 +2,61 @@ package org.acme;
 
 import io.quarkus.runtime.QuarkusApplication;
 import io.quarkus.runtime.annotations.QuarkusMain;
-import nu.pattern.OpenCV;
 import org.acme.filters.*;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 
 @QuarkusMain
 public class QMain implements QuarkusApplication {
 
+    private static final Logger LOG = Logger.getLogger(QMain.class);
 
-    final String testImage = "TestImg-300x300.jpg";
-    final String targetImage = "TestImg-301x301.jpg";
+    // Set these in your application.properties
+    @ConfigProperty(name = "cli.sourceImagePath")
+    String testImage;
+
+    // Set these in your application.properties
+    @ConfigProperty(name = "cli.targetImagePath")
+    String targetImage;
+
+    // Set these in your application.properties
+    @ConfigProperty(name = "haarcascade.filePath")
+    String haarCascadeFilePath;
 
 
     @Override
     public int run(String... args) throws Exception {
 
-        //System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-        OpenCV.loadShared();
-
-        System.out.println("Loading OpenCV "+Core.NATIVE_LIBRARY_NAME);
-        System.out.println("Loading OpenCV "+Core.VERSION);
+        String current = new java.io.File( "." ).getCanonicalPath();
+        System.out.println("Current dir:"+current);
+        LOG.info("Loading OpenCV "+Core.NATIVE_LIBRARY_NAME);
+        LOG.info("Loading OpenCV "+Core.VERSION);
         Mat m = loadImage(testImage);
-        createConfig();
-        m = transformImage(m);
+        m = detectFaces(m);
         saveImage(m, targetImage);
+        LOG.info("Image processed and target lies here: "+targetImage);
         return 0;
     }
 
-    public static Mat loadImage(String imagePath) {
+
+    /**
+     * Loading the image
+     */
+    public Mat loadImage(String imagePath) {
         Imgcodecs imageCodecs = new Imgcodecs();
         return imageCodecs.imread(imagePath);
     }
 
 
-    public static Mat transformImage(Mat imageMatrix){
-        Mat img_color = imageMatrix;
-        Mat img_gray = imageMatrix;
-        Mat img_blur = imageMatrix;
-        Mat img_edge = imageMatrix;
+    public Mat detectFaces(Mat imageMatrix){
 
-        img_color = new PyrDown().process(imageMatrix);
-        img_color = new BilateralFilter().process(img_color);
-        img_color = new PyrUp().process(img_color);
-
-        img_gray = new RGB2Grey().process(imageMatrix);
-
-        img_blur = new MedianBlur().process(img_gray);
-        img_edge = new AdaptiveThreshold().process(img_blur);
-        img_edge = new Grey2RGB().process(img_edge);
-
-        img_edge = new BitwiseAnd().process(img_color, img_edge);
-
-        return new DetectFace().process(img_edge);
-
-    }
-
-    public static void createConfig(){
-        FilterConfig.add(new PyrDown());
-        FilterConfig.add(new BilateralFilter());
-        FilterConfig.add(new PyrUp());
-        FilterConfig.add(new RGB2Grey());
-        FilterConfig.add(new MedianBlur());
-        FilterConfig.add(new AdaptiveThreshold());
-        FilterConfig.add(new Grey2RGB());
-
+        return new DetectFace(haarCascadeFilePath).process(imageMatrix);
     }
 
 
-    public static void saveImage(Mat imageMatrix, String targetPath) {
+    public void saveImage(Mat imageMatrix, String targetPath) {
         Imgcodecs imgcodecs = new Imgcodecs();
         imgcodecs.imwrite(targetPath, imageMatrix);
     }
